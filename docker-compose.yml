@@ -1,8 +1,11 @@
 
+name: blooddonation-deployment
+
 services:
   postgresdb:
     image: postgres:16-alpine
-    container_name: postgres-db
+    container_name: postgresdb
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: root
@@ -11,33 +14,33 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d exam_2400032187"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     networks:
-      - blooddonation-net
+      - blooddonation-network
 
   backend:
     image: juneliasamaddar/docker-backend-2400032187:latest
+    build:
+      context: ./backend
+      dockerfile: backend.Dockerfile
     container_name: blooddonation-backend
     ports:
       - "8081:8081"
     depends_on:
-      - postgresdb
-    restart: on-failure
+      postgresdb:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
-      - blooddonation-net
-
-  frontend:
-    image: juneliasamaddar/docker-frontend-2400032187:latest
-    container_name: blooddonation-frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
-    restart: on-failure
-    networks:
-      - blooddonation-net
+      - blooddonation-network
 
 volumes:
   postgres_data:
 
 networks:
-  blooddonation-net:
+  blooddonation-network:
+    driver: bridge
